@@ -102,7 +102,11 @@ class ORJobShopEnv:
             self.release_machine()
 
     def time_advance(self):
-        self.current_time = self.find_second_min()
+        min_next_time = min(self.next_time_on_machine)
+        if self.current_time < min_next_time:
+            self.current_time = min_next_time
+        else:
+            self.current_time = self.find_second_min()
         for machine in range(self.machine_num):
             dist_need_to_advance = self.current_time - self.next_time_on_machine[machine]
             if dist_need_to_advance > 0:

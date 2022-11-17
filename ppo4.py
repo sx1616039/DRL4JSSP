@@ -36,7 +36,7 @@ class Critic(nn.Module):
 
 
 class PPO:
-    def __init__(self, j_env, unit_num=100, memory_size=5, batch_size=32, clip_ep=0.2):
+    def __init__(self, j_env, unit_num, memory_size, batch_size, clip_ep=0.2):
         super(PPO, self).__init__()
         self.env = j_env
         self.memory_size = memory_size
@@ -50,7 +50,6 @@ class PPO:
         self.A_LR = 1e-3  # learning rate for actor
         self.C_LR = 3e-3  # learning rate for critic
         self.A_UPDATE_STEPS = 10  # actor update steps
-        self.C_UPDATE_STEPS = 10  # critic update steps
         self.max_grad_norm = 0.5
         self.training_step = 0
 
@@ -137,7 +136,7 @@ class PPO:
         converged = 0
         converged_value = []
         t0 = time.time()
-        for i_epoch in range(4000):
+        for i_epoch in range(2000):
             if time.time()-t0 >= 3600:
                 break
             bs, ba, br, bp = [], [], [], []
@@ -189,16 +188,17 @@ class PPO:
 
 
 if __name__ == '__main__':
-    data_set_name = "all_data_set_113102"
-    path = "all_data_set/"
-    parameters = data_set_name + "_no"
+    data_set_name = "datasets_sizes_113102"
+    path = "datasets_sizes/"
+    parameters = data_set_name
+    # parameters = data_set_name + "_no"
     param = [parameters, "converge_cnt", "total_time", "no-op"]
 
     simple_results = pd.DataFrame(columns=param, dtype=int)
     for file_name in os.listdir(path):
         print(file_name + "========================")
         title = file_name.split('.')[0]
-        env = JobEnv(title, path, no_op=True)
+        env = JobEnv(title, path, no_op=False)
         scale = env.job_num * env.machine_num
         model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=scale, clip_ep=0.2)
         simple_results.loc[title] = model.train(parameters)

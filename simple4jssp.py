@@ -33,7 +33,7 @@ class JobEnv:
             data = f.read()
             data = str(data).replace('\n', '\t')
             data = str(data).split('\t')
-            if data.__contains__(""):
+            while data.__contains__(""):
                 data.remove("")
             job = list(map(int, data))
             self.job = np.array(job).reshape(self.m_n[0], self.m_n[1] * 2)
@@ -85,7 +85,7 @@ class JobEnv:
         self.finished_jobs = np.zeros(self.job_num, dtype=bool)
 
         self.last_release_time = np.repeat(0, self.job_num)
-        self.state = []
+        self.state = np.zeros(self.state_num, dtype=float)
         self.result_dict = {}
         self.done = False
         self.no_op_cnt = 0
@@ -106,6 +106,8 @@ class JobEnv:
                 work_remain += self.job[job_id][(i + self.current_op_of_job[job_id]) * 2 + 1]
             for k in range(self.current_op_of_job[job_id]):
                 work_done += self.job[job_id][k * 2 + 1]
+            if work_remain == 0:
+                return 10000
             return work_done/work_remain
         elif feature == self.pdr_label[3]:
             return self.machine_num - self.current_op_of_job[job_id] + 1
@@ -119,12 +121,17 @@ class JobEnv:
         return 0
 
     def _get_state(self):
-        self.state = []
-        self.state = np.append(self.state, (self.next_time_on_machine - self.current_time) / self.max_op_len)
-        self.state = np.append(self.state, self.job_on_machine / self.job_num)
-        self.state = np.append(self.state, self.current_op_of_job / self.machine_num)
-        self.state = np.append(self.state, self.assignable_job)
-        return self.state
+        # self.state = []
+        # self.state = np.append(self.state, (self.next_time_on_machine - self.current_time) / self.max_op_len)
+        # self.state = np.append(self.state, self.job_on_machine / self.job_num)
+        # self.state = np.append(self.state, self.current_op_of_job / self.machine_num)
+        # self.state = np.append(self.state, self.assignable_job)
+        # return self.state
+        self.state[0:self.machine_num] = (self.next_time_on_machine - self.current_time) / self.max_op_len
+        self.state[self.machine_num:self.machine_num*2] = np.array(self.job_on_machine) / self.job_num
+        self.state[self.machine_num * 2:self.machine_num * 2 + self.job_num] = self.current_op_of_job/self.machine_num
+        self.state[self.machine_num * 2 + self.job_num:] = self.assignable_job
+        return self.state.flatten()
 
     def step(self, action):
         self.done = False
@@ -177,7 +184,11 @@ class JobEnv:
 
     def time_advance(self):
         hole_len = 0
-        self.current_time = self.find_second_min()
+        min_next_time = min(self.next_time_on_machine)
+        if self.current_time < min_next_time:
+            self.current_time = min_next_time
+        else:
+            self.current_time = self.find_second_min()
         for machine in range(self.machine_num):
             dist_need_to_advance = self.current_time - self.next_time_on_machine[machine]
             if dist_need_to_advance > 0:
